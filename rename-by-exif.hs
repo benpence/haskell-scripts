@@ -48,7 +48,7 @@ data Timestamp = Timestamp
     , tsSecond :: Int
     } deriving (Eq, Show, Ord)
 
-type ExifField = Text
+newtype ExifField = ExifField { getExifField :: Text } deriving (Show, Eq)
 
 description :: Description
 description =
@@ -67,8 +67,8 @@ main = sh $ do
 
     renameFile timestamp filePath
 
-exifArg :: Parser Text
-exifArg = argText "exifField" Default
+exifArg :: Parser ExifField
+exifArg = ExifField <$> argText "exifField" Default
 
 filePathToText :: FilePath -> Text
 filePathToText = either id id . FilePath.toText
@@ -95,7 +95,7 @@ countUntilNewFile' i formatter = do
        else pure filePath
 
 exiftool :: ExifField -> FilePath -> Shell Text
-exiftool exifField filePath =
+exiftool (ExifField exifField) filePath =
   let
     -- Example command: exiftool -"FileModifyDate" my_image.jpg
     command = format
