@@ -70,9 +70,6 @@ main = sh $ do
 exifArg :: Parser ExifField
 exifArg = ExifField <$> argText "exifField" Default
 
-filePathToText :: FilePath -> Text
-filePathToText = either id id . FilePath.toText
-
 -- | Rename the file based on timestamp
 renameFile :: Timestamp -> FilePath -> Shell ()
 renameFile ts src = do
@@ -80,7 +77,7 @@ renameFile ts src = do
     let srcDir = directory src
     dest <- liftIO $ countUntilNewFile (formatTimestamp ts srcDir ext)
     mv src dest
-    echo $ "mv '" <> filePathToText src <> "' '" <> filePathToText dest <> "'"
+    echo $ "mv '" <> repr src <> "' '" <> repr dest <> "'"
 
 -- | Count until we find a file
 countUntilNewFile :: (Int -> FilePath) -> IO FilePath
@@ -89,7 +86,7 @@ countUntilNewFile = countUntilNewFile' 1
 countUntilNewFile' :: Int -> (Int -> FilePath) -> IO FilePath
 countUntilNewFile' i formatter = do
     let filePath = formatter i
-    doesExist <- doesFileExist (Text.unpack $ filePathToText filePath)
+    doesExist <- doesFileExist (show filePath)
     if doesExist
        then countUntilNewFile' (succ i) formatter
        else pure filePath
@@ -101,7 +98,7 @@ exiftool (ExifField exifField) filePath =
     command = format
         ("exiftool -'" % s % "' '" % s % "'")
         exifField
-        (filePathToText filePath)
+        (repr filePath)
   in inshell command empty
 
 -- | TODO: This may erroneously succeed if `exiftool` starts to output >1 records
@@ -130,8 +127,7 @@ formatTimestamp :: Timestamp
                 -> FilePath
 formatTimestamp (Timestamp yr mo da ho mi se) dir ext count =
   let
-    tShow = Text.pack . show
-    dd = makeFormat (\i -> if i > 9 then tShow i else "0" <> tShow i)
+    dd = makeFormat (\i -> if i > 9 then repr i else "0" <> repr i)
   in dir <> (FilePath.fromText $ format
       (d % "-" % dd % "-" % dd % "_" % dd % ":" % dd % ":" % dd % "_" % d %   s)
        yr        mo         da         ho         mi         se         count ext)
