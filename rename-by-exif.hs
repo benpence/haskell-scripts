@@ -75,9 +75,9 @@ renameFile :: Timestamp -> FilePath -> Shell ()
 renameFile ts src = do
     let ext = maybe "" ("." <>) (extension src)
     let srcDir = directory src
-    dest <- liftIO $ countUntilNewFile (formatTimestamp ts srcDir ext)
+    dest <- liftIO (countUntilNewFile (formatTimestamp ts srcDir ext))
     mv src dest
-    echo $ "mv '" <> repr src <> "' '" <> repr dest <> "'"
+    echo ("mv '" <> repr src <> "' '" <> repr dest <> "'")
 
 -- | Count until we find a file
 countUntilNewFile :: (Int -> FilePath) -> IO FilePath
@@ -116,9 +116,9 @@ exiftoolTimestampPattern = do
     spaces1
 
     (hour, minute, second)  <- trio
-    option $ skip $ "-" *> decimal *> ":" *> decimal
+    option (skip ("-" *> decimal *> ":" *> decimal))
 
-    pure $ Timestamp year month day hour minute second
+    pure (Timestamp year month day hour minute second)
 
 formatTimestamp :: Timestamp
                 -> FilePath  -- ^ The directory that contains the file
@@ -128,6 +128,6 @@ formatTimestamp :: Timestamp
 formatTimestamp (Timestamp yr mo da ho mi se) dir ext count =
   let
     dd = makeFormat (\i -> if i > 9 then repr i else "0" <> repr i)
-  in dir <> (FilePath.fromText $ format
+  in dir <> (FilePath.fromText (format
       (d % "-" % dd % "-" % dd % "_" % dd % ":" % dd % ":" % dd % "_" % d %   s)
-       yr        mo         da         ho         mi         se         count ext)
+       yr        mo         da         ho         mi         se         count ext) )
