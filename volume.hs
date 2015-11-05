@@ -6,76 +6,67 @@
     Creates a notification announcing the new volume using `notify`.
 -}
 
-import Data.Optional (Optional)
-import Data.Optional (Optional(Specific))
 import Data.String (fromString)
-import qualified Data.Text as Text
-import System.Environment (getArgs)
 import Turtle
 
 data Command = Up Int | Down Int | Toggle | Print deriving (Eq, Show)
 type Volume = Text
 
-main = sh $ do
+main = do
     command <- options "Modify or print the volume" argsParser
     changeVolume command
 
     -- TODO: Handle no output
-    output <- amixerOutput
-    volume <- case match signedVolumePattern output of
-        [volume] -> pure volume
-        _        -> die "Unable to parse amixer output"
+    output  <- amixerOutput
+    volume  <- case match signedVolumePattern output of
+        [left, _] -> pure left
+        _         -> die "Unable to parse amixer output"
     
     announceVolumeChanges command volume
     printVolume command volume
 
 argsParser :: Parser Command
-argsParser = Up           <$> (argConst "up"          (Specific "Increase the volume")
-                           *>  argInt   "up_amount"   (Specific "Increase by percentage [1-100]") )
-         <|> Down         <$> (argConst "down"        (Specific "Decrease the volume")
-                           *>  argInt   "down_amount" (Specific "Decrease by percentage [1-100]") )
-         <|> const Toggle <$>  argConst "toggle"      (Specific "Toggle sound mute")
-         <|> const Print  <$>  argConst "print"       (Specific "Print the volume")
+argsParser = Up     <$> optInt "up"     'u' "Increase the volume by percentage [1 to 100]"
+         <|> Down   <$> optInt "down"   'd' "Decrease the volume by percentage [1 to 100]"
+         <|> Print  <$  switch "print"  'p' "Print the volume"
+         <|> Toggle <$  switch "toggle" 't' "Toggle sound mute"
 
-changeVolume :: Command -> Shell Text
+changeVolume :: Command -> IO ()
 changeVolume (Up   amt) = run ("amixer -q sset Master,0 " <> showS amt <> "%+")
 changeVolume (Down amt) = run ("amixer -q sset Master,0 " <> showS amt <> "%-")
 changeVolume Toggle     = run  "amixer -q sset Master,0 toggle"
-changeVolume Print      = empty
+changeVolume Print      = pure ()
 
-announceVolumeChanges :: Command -> Volume -> Shell ()
-announceVolumeChanges Print _      = empty
+announceVolumeChanges :: Command -> Volume -> IO ()
+announceVolumeChanges Print _      = pure ()
 announceVolumeChanges _     volume = do
-    -- Create desktop notification
-    run ("notify volume " <> volume)
     -- Update tmux
     run "tmux refresh -S"
-    empty
 
-printVolume :: Command -> Volume -> Shell ()
+    -- Create desktop notification
+    run ("notify volume " <> volume)
+
+printVolume :: Command -> Volume -> IO ()
 printVolume Print volume = echo volume
-printVolume _     _      = empty
+printVolume _     _      = pure ()
 
-amixerOutput :: Shell Text
-amixerOutput = run "amixer get Master,0"
+amixerOutput :: IO Text
+amixerOutput = snd <$> procStrict "amixer" ["get", "Master,0"] empty
 
 signedVolumePattern :: Pattern Volume
 signedVolumePattern = do
-    count 4 (chars1 <> spaces1)
+    chars
 
     volume <- "[" *> decimal <* "%]"
-
     spaces1
+    on <- "[" *> ("on" <|> "off") <* "]"
 
-    muted <- "[" *> ("on" <|> "off") <* "]"
+    chars
 
-    pure $ showS volume <> if muted == "off" then "+" else "-"
-
-argConst :: Text -> Optional HelpMessage -> Parser Text
-argConst text = arg (\t -> if t == text then Just t else Nothing) (fromString (Text.unpack text))
+    pure (showS volume <> if on == "on" then "+" else "-")
 
 showS :: (Show a, IsString b) => a -> b
 showS = fromString . show
 
-run :: Text -> Shell Text
-run cmd = inshell cmd empty
+run :: Text -> IO ()
+run cmd = sh (inshell cmd empty)
