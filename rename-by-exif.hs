@@ -25,10 +25,8 @@
 
 import Control.Applicative (empty)
 import Control.Applicative (liftA3)
-import Control.Monad (foldM)
 import Control.Monad.Trans (liftIO)
 import Data.Maybe (listToMaybe)
-import Data.Optional (Optional(Default))
 import qualified Data.Text as Text
 import Filesystem.Path (FilePath)
 import Filesystem.Path (directory)
@@ -36,7 +34,6 @@ import Filesystem.Path (extension)
 import qualified Filesystem.Path.CurrentOS as FilePath
 import Prelude hiding (FilePath)
 import System.Directory (doesFileExist)
-import System.Environment (getArgs)
 import Turtle
 
 data Timestamp = Timestamp
@@ -77,7 +74,7 @@ renameFile ts src = do
     let srcDir = directory src
     dest <- liftIO (countUntilNewFile (formatTimestamp ts srcDir ext))
     mv src dest
-    echo ("mv '" <> repr src <> "' '" <> repr dest <> "'")
+    echo ("mv '" <> format fp src <> "' '" <> format fp dest <> "'")
 
 -- | Count until we find a file
 countUntilNewFile :: (Int -> FilePath) -> IO FilePath
