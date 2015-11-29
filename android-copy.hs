@@ -28,7 +28,6 @@
 > $ rm -rf /sdcard/Music/*
 -}
 
-import qualified Filesystem.Path.CurrentOS as FilePath
 import Prelude hiding (FilePath)
 import Turtle
 
@@ -36,13 +35,13 @@ main = sh (do
     (srcDir, androidDir) <- options description args
     liftIO (existsOrDie srcDir (testdir srcDir))
 
-    m3uFile <- fmap FilePath.fromText stdin
+    m3uFile <- fmap fromText stdin
     liftIO (existsOrDie m3uFile (testfile m3uFile))
     echo (format fp m3uFile)
     liftIO (adbPush m3uFile androidDir)
 
     relMusicFilePath <- grep (invert spaces) (input m3uFile)
-    let relMusicFile  = FilePath.fromText relMusicFilePath
+    let relMusicFile  = fromText relMusicFilePath
     let musicFile     = srcDir <> relMusicFile
     liftIO (existsOrDie musicFile (testfile musicFile))
 
@@ -72,7 +71,7 @@ adbPush srcPath dstPath = do
 
 -- Uses Android "ls" failures to determine if a file is new
 onlyNewFiles :: FilePath -> Shell FilePath
-onlyNewFiles path = fmap FilePath.fromText (grep pattern pipe)
+onlyNewFiles path = fmap fromText (grep pattern pipe)
   where
     pattern = chars *> "No such file or directory" <* chars
     pipe    = inproc "adb" ["shell", format ("ls \"" % fp % "\"") path] empty
