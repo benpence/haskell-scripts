@@ -55,7 +55,7 @@ description =
 main = sh $ do
     exifField  <- options description exifArg
     filePath   <- FilePath.fromText <$> stdin
-    exifOutput <- exiftool exifField filePath
+    exifOutput <- liftIO (exiftool exifField filePath)
 
     timestamp  <- case parseExiftoolOutput exifOutput of
         Just ts -> pure ts
@@ -88,17 +88,12 @@ countUntilNewFile' i formatter = do
        then countUntilNewFile' (succ i) formatter
        else pure filePath
 
-exiftool :: ExifField -> FilePath -> Shell Text
-exiftool (ExifField exifField) filePath =
-  let
-    -- Example command: exiftool -"FileModifyDate" my_image.jpg
-    command = format
-        ("exiftool -'" % s % "' '" % s % "'")
-        exifField
-        (repr filePath)
-  in inshell command empty
+-- | Example command: exiftool -"FileModifyDate" my_image.jpg
+exiftool :: ExifField -> FilePath -> IO Text
+exiftool (ExifField exifField) filePath = do
+    (_, output) <- procStrict "exiftool" ["-" <> exifField, format fp filePath] empty
+    pure output
 
--- | TODO: This may erroneously succeed if `exiftool` starts to output >1 records
 parseExiftoolOutput :: Text -> Maybe Timestamp
 parseExiftoolOutput = listToMaybe . match exiftoolTimestampPattern
 
