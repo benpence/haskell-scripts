@@ -33,17 +33,17 @@ import Turtle
 
 main = sh (do
     (srcDir, androidDir) <- options description args
-    liftIO (existsOrDie srcDir (testdir srcDir))
+    existsOrDie srcDir (testdir srcDir)
 
     m3uFile <- fmap fromText stdin
-    liftIO (existsOrDie m3uFile (testfile m3uFile))
+    existsOrDie m3uFile (testfile m3uFile)
     echo (format fp m3uFile)
     liftIO (adbPush m3uFile androidDir)
 
     relMusicFilePath <- grep (invert spaces) (input m3uFile)
     let relMusicFile  = fromText relMusicFilePath
     let musicFile     = srcDir <> relMusicFile
-    liftIO (existsOrDie musicFile (testfile musicFile))
+    existsOrDie musicFile (testfile musicFile)
 
     echo relMusicFilePath
     newFile <- onlyNewFiles (androidDir <> relMusicFile)
@@ -56,7 +56,7 @@ args :: Parser (FilePath, FilePath)
 args = (,) <$> argPath "musicSourceDir" "The directory from which the m3u playlist files are relative"
            <*> argPath "androidDestDir" "The destination directory for the music on the android device"
 
-existsOrDie :: FilePath -> IO Bool -> IO ()
+existsOrDie :: MonadIO io => FilePath -> io Bool -> io ()
 existsOrDie path test = do
     exists <- test
     unless exists (die (format ("Error: '" % fp % "' must exist") path))
