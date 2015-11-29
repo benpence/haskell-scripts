@@ -65,7 +65,7 @@ main = sh $ do
     liftIO (renameFile timestamp filePath)
 
 exifArg :: Parser ExifField
-exifArg = ExifField <$> argText "exifField" Default
+exifArg = fmap ExifField (argText "exifField" "The field to read in each file")
 
 -- | Rename the file based on timestamp
 renameFile :: Timestamp -> FilePath -> IO ()
@@ -100,15 +100,15 @@ parseExiftoolOutput = listToMaybe . match exiftoolTimestampPattern
 -- | Example input: File Modification Date/Time     : 2014:08:02 10:49:54-07:00
 exiftoolTimestampPattern :: Pattern Timestamp
 exiftoolTimestampPattern = do
-    plus (notChar ':') *> ":" *> spaces1
+    chars *> ":" *> spaces1
 
     let trio = liftA3 (,,) (decimal <* ":") (decimal <* ":") decimal
+
     (year, month, day)  <- trio
-
     spaces1
-
     (hour, minute, second)  <- trio
-    option (skip ("-" *> decimal *> ":" *> decimal))
+
+    chars
 
     pure (Timestamp year month day hour minute second)
 
