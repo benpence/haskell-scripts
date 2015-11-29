@@ -30,7 +30,6 @@
 
 import qualified Filesystem.Path.CurrentOS as FilePath
 import Prelude hiding (FilePath)
-import System.Exit (exitWith)
 import Turtle
 
 main = sh (do
