@@ -33,7 +33,6 @@ import Filesystem.Path (directory)
 import Filesystem.Path (extension)
 import qualified Filesystem.Path.CurrentOS as FilePath
 import Prelude hiding (FilePath)
-import System.Directory (doesFileExist)
 import Turtle
 
 data Timestamp = Timestamp
@@ -60,19 +59,20 @@ main = sh $ do
 
     timestamp  <- case parseExiftoolOutput exifOutput of
         Just ts -> pure ts
-        _       -> empty
-
-    renameFile timestamp filePath
+        _       -> do
+            err (format (fp % " : Unable to parse timestamp from exif data") filePath)
+            empty
+    liftIO (renameFile timestamp filePath)
 
 exifArg :: Parser ExifField
 exifArg = ExifField <$> argText "exifField" Default
 
 -- | Rename the file based on timestamp
-renameFile :: Timestamp -> FilePath -> Shell ()
+renameFile :: Timestamp -> FilePath -> IO ()
 renameFile ts src = do
     let ext = maybe "" ("." <>) (extension src)
     let srcDir = directory src
-    dest <- liftIO (countUntilNewFile (formatTimestamp ts srcDir ext))
+    dest <- countUntilNewFile (formatTimestamp ts srcDir ext)
     mv src dest
     echo ("mv '" <> format fp src <> "' '" <> format fp dest <> "'")
 
@@ -83,7 +83,7 @@ countUntilNewFile = countUntilNewFile' 1
 countUntilNewFile' :: Int -> (Int -> FilePath) -> IO FilePath
 countUntilNewFile' i formatter = do
     let filePath = formatter i
-    doesExist <- doesFileExist (show filePath)
+    doesExist <- testfile filePath
     if doesExist
        then countUntilNewFile' (succ i) formatter
        else pure filePath
