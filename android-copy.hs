@@ -39,7 +39,7 @@ main = sh (do
     m3uFile <- fmap fromText stdin
     existsOrDie m3uFile (testfile m3uFile)
     echo (format fp m3uFile)
-    liftIO (adbPush m3uFile androidDir)
+    adbPush m3uFile androidDir
 
     relMusicFilePath <- grep (invert spaces) (input m3uFile)
     let relMusicFile  = fromText relMusicFilePath
@@ -49,7 +49,7 @@ main = sh (do
     echo relMusicFilePath
     let destPath = androidDir </> relMusicFile
     True <- isNew destPath
-    liftIO (adbPush musicFile destPath)
+    adbPush musicFile destPath)
 
 description :: Description
 description = "Copy files referenced from m3u files in STDIN to android device, preserving hierarchy"
@@ -63,7 +63,7 @@ existsOrDie path test = do
     exists <- test
     unless exists (die (format ("Error: '" % fp % "' must exist") path))
 
-adbPush :: FilePath -> FilePath -> IO ()
+adbPush :: MonadIO io => FilePath -> FilePath -> io ()
 adbPush srcPath dstPath = do
     (exitCode, output) <- procStrict "adb" ["push", format fp srcPath, format fp dstPath] empty
     let command = format ("adb push " % fp % " " % fp) srcPath dstPath
