@@ -28,6 +28,7 @@
 > $ rm -rf /sdcard/Music/*
 -}
 
+import qualified Control.Foldl as Fold
 import Prelude hiding (FilePath)
 import Turtle
 
@@ -46,8 +47,9 @@ main = sh (do
     existsOrDie musicFile (testfile musicFile)
 
     echo relMusicFilePath
-    newFile <- onlyNewFiles (androidDir <> relMusicFile)
-    liftIO (adbPush musicFile newFile))
+    let destPath = androidDir </> relMusicFile
+    True <- isNew destPath
+    liftIO (adbPush musicFile destPath)
 
 description :: Description
 description = "Copy files referenced from m3u files in STDIN to android device, preserving hierarchy"
@@ -70,8 +72,8 @@ adbPush srcPath dstPath = do
         ExitSuccess      -> echo command
 
 -- Uses Android "ls" failures to determine if a file is new
-onlyNewFiles :: FilePath -> Shell FilePath
-onlyNewFiles path = fmap fromText (grep pattern pipe)
+isNew :: FilePath -> Shell Bool
+isNew androidPath = fmap not (fold (grep pattern pipe) Fold.null)
   where
-    pattern = chars *> "No such file or directory" <* chars
-    pipe    = inproc "adb" ["shell", format ("ls \"" % fp % "\"") path] empty
+    pattern = has "No such file or directory"
+    pipe    = inproc "adb" ["shell", format ("ls \"" % fp % "\"") androidPath] empty
